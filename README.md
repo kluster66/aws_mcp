@@ -1,4 +1,4 @@
-# Serveur MCP pour AWS avec Docker
+# Serveur MCP pour AWS avec Docker (qui pour l'instant ne fonctionne pas)
 
 Ce projet est un serveur MCP (Model Context Protocol) qui expose des fonctionnalités AWS (lister les buckets S3, lister les instances EC2) via une API REST. Il est construit en Python avec la bibliothèque `mcp` et est conçu pour être déployé facilement avec Docker.
 
