@@ -1,22 +1,24 @@
-# Utiliser une image Python officielle comme image de base
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-# Définir le répertoire de travail dans le conteneur
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# CORRECTION OFFICIELLE : On ajoute le dossier d'installation de pip au PATH
+ENV PATH="/root/.local/bin:$PATH"
+
 WORKDIR /app
 
-# Copier le fichier des dépendances dans le répertoire de travail
-COPY requirements.txt .
+# Installation
+RUN pip install --no-cache-dir boto3 uvicorn fastmcp
 
-# Installer les dépendances
-# --no-cache-dir pour ne pas stocker le cache pip et réduire la taille de l'image
-# --trusted-host pypi.python.org pour éviter les problèmes de SSL dans certains environnements
-RUN pip install --no-cache-dir --trusted-host pypi.python.org -r requirements.txt
+# Copie du code
+COPY aws_mcp_server.py .
 
-# Copier le reste du code de l'application
-COPY . .
+EXPOSE 8000
 
-# Exposer le port sur lequel le serveur MCP écoute
-EXPOSE 5001
-
-# La commande pour lancer l'application lorsque le conteneur démarre
-CMD ["python", "aws_mcp_server.py"]
+# COMMANDE OFFICIELLE (Telle que décrite dans le Wiki)
+# Le CLI 'fastmcp' va :
+# 1. Charger ton fichier
+# 2. Trouver l'objet 'server'
+# 3. Lancer un serveur web Uvicorn optimisé SSE
+CMD ["fastmcp", "run", "aws_mcp_server.py", "--transport", "sse", "--host", "0.0.0.0", "--port", "8000"]

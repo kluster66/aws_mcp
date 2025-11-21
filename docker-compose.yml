@@ -1,15 +1,10 @@
 services:
-  aws-mcp-server:
-    # Construit l'image à partir du Dockerfile dans le répertoire courant
+  aws-mcp:
     build: .
-    # Nom du conteneur pour une identification facile
     container_name: aws-mcp-server
-    # Mappe le port 5001 du conteneur au port 5001 de la machine hôte
     ports:
-      - "5001:5001"
-    # Monte le répertoire des credentials AWS dans le conteneur
-    # Docker Compose remplace '~' par le répertoire personnel de l'utilisateur
+      - "8000:8000"
     volumes:
-      - ~/.aws:/root/.aws
-    # Redémarre automatiquement le conteneur en cas d'échec
+      # Chemin relatif Windows avec des SLASH (/) (à adapter selon votre OS)
+      - ${USERPROFILE}/.aws:/root/.aws:ro
     restart: unless-stopped
