@@ -1,6 +1,13 @@
-# Serveur MCP pour AWS avec Docker (qui pour l'instant ne fonctionne pas)
+# Serveur MCP pour AWS avec Docker 
 
-Ce projet est un serveur MCP (Model Context Protocol) qui expose des fonctionnalités AWS (lister les buckets S3, lister les instances EC2) via une API REST. Il est construit en Python avec la bibliothèque `mcp` et est conçu pour être déployé facilement avec Docker.
+Ce projet est un serveur MCP (Model Context Protocol) qui expose des fonctionnalités AWS (lister les buckets S3, lister les instances EC2) via une API REST. Il est construit en Python avec la bibliothèque `fastmcp`, un framework léger pour créer des serveurs compatibles avec le Model Context Protocol, expose un endpoint SSE (Server-Sent Events) et est conçu pour être déployé facilement avec Docker.
+
+## Structure du Projet
+
+
+├── aws_mcp_server.py    # Le code Python (définition des outils)
+├── Dockerfile           # L'image Docker (environnement Python)
+└── docker-compose.yml   # Orchestration (injection des credentials)
 
 ## Prérequis
 
@@ -40,7 +47,7 @@ Le serveur est maintenant en cours d'exécution et accessible sur `http://localh
 
 ## Points d'entrée (Endpoints) du Protocole
 
-Le serveur implémente le Model Context Protocol via les points d'entrée standard gérés par la bibliothèque `mcp`.
+Le serveur implémente le Model Context Protocol via les points d'entrée standard gérés par la bibliothèque `mcp`. Il requiert un token d'authentification pour tous les appels.
 
 ### 1. Découverte des outils (`/tools`)
 
@@ -48,11 +55,12 @@ Permet de lister les outils disponibles et leur schéma.
 
 *   **URL** : `/tools`
 *   **Méthode** : `GET`
+*   **Header** : `Authorization: Bearer changeme`
 *   **Réponse** : Un JSON contenant la liste des outils, leur description et leurs paramètres.
 
 **Exemple avec `curl`:**
 ```bash
-curl http://localhost:5001/tools
+curl -H "Authorization: Bearer changeme" http://localhost:5001/tools
 ```
 
 ### 2. Exécution d'un outil (`/execute`)
@@ -61,6 +69,7 @@ Permet de lancer un outil spécifique avec des arguments.
 
 *   **URL** : `/execute`
 *   **Méthode** : `POST`
+*   **Header** : `Authorization: Bearer changeme`
 *   **Corps de la requête (Body)** : Un JSON spécifiant le nom de l'outil et ses arguments.
     ```json
     {
@@ -72,11 +81,21 @@ Permet de lancer un outil spécifique avec des arguments.
     ```
 *   **Réponse** : Un JSON contenant le résultat de l'exécution de l'outil.
 
+#### Outils Disponibles
+
+| Outil | Description | Paramètres |
+|---|---|---|
+| `list_s3_buckets` | Renvoie la liste des noms de tous les buckets S3. | Aucun |
+| `list_ec2_instances`| Liste les instances EC2 dans une région donnée. | `region` (string, optionnel) : La région AWS. Défaut: `eu-west-3`. |
+| `get_monthly_cost` | Récupère le coût AWS total du mois en cours. | Aucun |
+| `get_cost_breakdown`| Liste les 5 services AWS les plus coûteux du mois en cours. | Aucun |
+
 **Exemples avec `curl`:**
 
 *   **Lister les buckets S3 :**
     ```bash
     curl -X POST -H "Content-Type: application/json" \
+         -H "Authorization: Bearer changeme" \
          -d '{"tool_name": "list_s3_buckets"}' \
          http://localhost:5001/execute
     ```
@@ -84,6 +103,7 @@ Permet de lancer un outil spécifique avec des arguments.
 *   **Lister les instances EC2 dans une région spécifique :**
     ```bash
     curl -X POST -H "Content-Type: application/json" \
+         -H "Authorization: Bearer changeme" \
          -d '{"tool_name": "list_ec2_instances", "arguments": {"region": "us-west-2"}}' \
          http://localhost:5001/execute
     ```
