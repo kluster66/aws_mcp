@@ -3,7 +3,7 @@ import logging
 import os
 import datetime
 import boto3
-from typing import Any
+from typing import Any, List, Optional
 from mcp.server.fastmcp import FastMCP
 from botocore.exceptions import ClientError, NoCredentialsError
 
@@ -117,3 +117,90 @@ def get_cost_breakdown() -> Any:
         return _handle_aws_error(e, "Cost Explorer")
 
 # C'EST TOUT. PAS DE "server.run()" À LA FIN.
+
+@server.tool(name="describe_trails")
+def describe_trails() -> Any:
+    """
+    Récupère des informations sur les pistes CloudTrail dans le compte AWS.
+    Retourne une liste de descriptions de pistes, y compris leurs ARN, leur statut et s'ils sont multi-régionaux.
+    """
+    try:
+        cloudtrail_client = boto3.client('cloudtrail')
+        response = cloudtrail_client.describe_trails()
+        # On ne retourne que la liste des trails pour que ce soit plus simple pour le LLM
+        return response.get('trailList', [])
+    except (ClientError, NoCredentialsError) as e:
+        return _handle_aws_error(e, "CloudTrail")
+    except Exception as e:
+        # Pour toute autre erreur inattendue
+        return _handle_aws_error(e, "CloudTrail")
+
+        
+
+@server.tool(name="lookup_cloudtrail_events")
+def lookup_cloudtrail_events(
+    event_name: Optional[str] = None,
+    event_source: Optional[str] = None,
+    username: Optional[str] = None,
+    time_hours_ago: int = 24,
+    max_results: int = 10
+) -> Any:
+    """
+    Recherche des événements dans CloudTrail avec des filtres spécifiques.
+    Permet de trouver des activités comme des connexions, des changements IAM, etc.
+
+    Args:
+        event_name: Filtre sur le nom de l'événement (ex: 'ConsoleLogin', 'CreateUser').
+        event_source: Filtre sur le service AWS source (ex: 'iam.amazonaws.com').
+        username: Filtre sur le nom de l'utilisateur qui a initié l'événement.
+        time_hours_ago: Recherche dans les X dernières heures (défaut: 24).
+        max_results: Nombre maximum d'événements à retourner (défaut: 10).
+    """
+    try:
+        cloudtrail_client = boto3.client('cloudtrail')
+        # Calcul de la période de temps
+        end_time = datetime.datetime.now(datetime.timezone.utc)
+        start_time = end_time - datetime.timedelta(hours=time_hours_ago)
+
+        # Construction des filtres
+        lookup_attributes = []
+        if event_name:
+            lookup_attributes.append({'AttributeKey': 'EventName', 'AttributeValue': event_name})
+        if event_source:
+            lookup_attributes.append({'AttributeKey': 'EventSource', 'AttributeValue': event_source})
+        if username:
+            lookup_attributes.append({'AttributeKey': 'Username', 'AttributeValue': username})
+
+        # Arguments pour l'appel API
+        kwargs = {
+            'StartTime': start_time,
+            'EndTime': end_time,
+            'MaxResults': max_results
+        }
+        if lookup_attributes:
+            kwargs['LookupAttributes'] = lookup_attributes
+
+        response = cloudtrail_client.lookup_events(**kwargs)
+
+        # Simplifier la sortie pour le LLM
+        events = []
+        for event in response.get('Events', []):
+            events.append({
+                "EventId": event.get('EventId'),
+                "EventName": event.get('EventName'),
+                "EventTime": event.get('EventTime').isoformat(),
+                "Username": event.get('Username'),
+                "Resources": [
+                    {"ResourceType": r.get("ResourceType"), "ResourceName": r.get("ResourceName")}
+                    for r in event.get("Resources", [])
+                ]
+            })
+
+        return events
+
+    except (ClientError, NoCredentialsError) as e:
+        return _handle_aws_error(e, "CloudTrail")
+    except Exception as e:
+        return _handle_aws_error(e, "CloudTrail")
+
+        
