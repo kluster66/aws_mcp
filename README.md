@@ -6,7 +6,9 @@ Ce projet est un serveur MCP (Model Context Protocol) qui expose des fonctionnal
 
 
 ├── aws_mcp_server.py    # Le code Python (définition des outils)
+
 ├── Dockerfile           # L'image Docker (environnement Python)
+
 └── docker-compose.yml   # Orchestration (injection des credentials)
 
 ## Prérequis
